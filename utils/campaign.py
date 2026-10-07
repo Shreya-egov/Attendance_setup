@@ -115,6 +115,7 @@ def default_locale(hcm):
                         "moduleName": "common-masters",
                         "masterDetails": [{"name": "StateInfo"}]}]}}, expect=(200,))
     info = ((body.get("MdmsRes") or {}).get("common-masters") or {}).get("StateInfo") or []
+    # en_IN only if the tenant declares no language at all
     return (info[0].get("defaultLanguage") if info else None) or "en_IN"
 
 
@@ -199,6 +200,20 @@ def boundaries_from(hcm, hierarchy, number):
                                    includeChildren="true"):
             walk(root)
     return boundaries, valid, (expand or [boundaries[-1]["code"]])[-1]
+
+
+def user_level_boundary(boundaries, level):
+    """The selected boundary of type ``level`` (e.g. DISTRICT) - where the
+    users are created. Registers then follow them: --level auto puts a
+    register wherever the DISTRIBUTOR users are."""
+    level = level.upper()
+    matches = [b["code"] for b in boundaries if (b.get("type") or "").upper() == level]
+    if not matches:
+        die(f"the campaign selects no {level} boundary; selected types: "
+            f"{[b.get('type') for b in boundaries]} (set HCM_USER_LEVEL)")
+    if len(matches) > 1:
+        print(f"  WARNING  {len(matches)} {level} boundaries selected; users go to {matches[0]}")
+    return matches[0]
 
 
 # ---- project-factory ---------------------------------------------------
@@ -332,12 +347,13 @@ def plan_campaign(hcm, args):
         boundaries, valid, target = boundaries_from(hcm, hierarchy, args.boundaries_from)
     else:
         boundaries, valid, target = select_boundaries(hcm, hierarchy, args.boundary)
+    user_boundary = user_level_boundary(boundaries, args.user_level)
     plan = {
         "ptype": ptype, "name": args.name or unique_name(ptype["code"]),
         "hierarchy": hierarchy, "locale": args.locale or default_locale(hcm),
         "start": start, "end": end, "sample": sample,
         "boundaries": boundaries, "valid": valid, "target": target,
-        "timeout": args.timeout, "roles": roles,
+        "timeout": args.timeout, "roles": roles, "user_boundary": user_boundary,
     }
     print("\n== campaign")
     print(f"           {plan['name']}  type={ptype['code']}  hierarchy={hierarchy}"
@@ -351,7 +367,8 @@ def plan_campaign(hcm, args):
     # earlier campaigns planned in this run take their numbers first
     phones = PhoneBook().peek(len(roles), skip=PhoneBook.planned)
     PhoneBook.planned += len(roles)
-    print(f"           users      {len(roles)} at {target}, phones from {phones[0]}"
+    print(f"           users      {len(roles)} at {user_boundary} ({args.user_level.upper()}),"
+          f" phones from {phones[0]}"
           " (skipping registered ones):")
     for role, phone in zip(roles, phones):
         print(f"             {role:<22} {phone}")
@@ -441,7 +458,7 @@ def create_campaign(hcm, plan):
     for sheet, n in moved.items():
         print(f"  6 fill           '{sheet}': {n} active row(s) re-pointed to {plan['target']}")
     book = PhoneBook()
-    users = [dict(book.issue(hcm, role, number), boundary=plan["target"])
+    users = [dict(book.issue(hcm, role, number), boundary=plan["user_boundary"])
              for role in plan["roles"]]
     try:
         write_users(filled, users)

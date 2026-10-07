@@ -15,7 +15,7 @@ import uuid
 import requests
 
 from utils.config import (
-    ATTENDANCE_BATCH, BASE, INDIVIDUAL_SEARCH_PATHS, PROJECT_SEARCH_PATHS,
+    ATTENDANCE_BATCH, BASE, INDIVIDUAL_SEARCH_PATHS, LOCALE, PROJECT_SEARCH_PATHS,
     PROJECT_STAFF_PATHS, REGISTER_API_BATCH, TENANT, TIMEOUT,
 )
 
@@ -55,7 +55,7 @@ class Hcm:
         self.last_exchange = None
         # Sent as the msgId suffix, which is where excel-ingestion reads the
         # locale it localizes generated templates in (create_campaign sets it).
-        self.locale = "en_IN"
+        self.locale = LOCALE or "en_IN"
 
     # ---- auth ----------------------------------------------------------
 
@@ -106,7 +106,7 @@ class Hcm:
                 json={"RequestInfo": {
                     "apiId": "Rainmaker", "ver": ".01",
                     "ts": int(time.time() * 1000), "action": "_get",
-                    "did": "1", "key": "", "msgId": f"{int(time.time()*1000)}|en_IN",
+                    "did": "1", "key": "", "msgId": f"{int(time.time()*1000)}|{LOCALE or 'en_IN'}",
                     "authToken": token,
                 }},
                 timeout=TIMEOUT,
@@ -193,7 +193,17 @@ class Hcm:
     def post(self, path, payload, params=None, expect=(200, 202)):
         body = dict(payload)
         body["RequestInfo"] = self.request_info()
-        r = self.s.post(f"{BASE}{path}", json=body, params=params, timeout=TIMEOUT)
+        # Searches are retried on a gateway hiccup (qa answers 500
+        # PrematureCloseException / 502-504 now and then); writes never are,
+        # since a retried _create can duplicate.
+        attempts = 3 if path.endswith(("_search", "/search")) else 1
+        for attempt in range(1, attempts + 1):
+            r = self.s.post(f"{BASE}{path}", json=body, params=params, timeout=TIMEOUT)
+            transient = r.status_code in (502, 503, 504) or (
+                r.status_code == 500 and "PrematureClose" in r.text)
+            if not transient or attempt == attempts:
+                break
+            time.sleep(2 * attempt)
         self.last_exchange = {
             "method": "POST", "url": r.url,
             "payload": {k: v for k, v in body.items() if k != "RequestInfo"},

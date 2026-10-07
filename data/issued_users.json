@@ -1,5 +1,5 @@
 {
-  "next": 9100000025,
+  "next": 9100000033,
   "issued": [
     {
       "phone": 9100000001,
@@ -168,6 +168,62 @@
       "name": "Campaign Supervisor 0024",
       "campaign": "CMP-2026-10-07-011031",
       "issuedAt": "2026-10-07T14:39:07"
+    },
+    {
+      "phone": 9100000025,
+      "role": "DISTRIBUTOR",
+      "name": "Distributor 0025",
+      "campaign": "CMP-2026-10-07-011032",
+      "issuedAt": "2026-10-07T17:11:45"
+    },
+    {
+      "phone": 9100000026,
+      "role": "FIELD_SUPPORT",
+      "name": "Field Support 0026",
+      "campaign": "CMP-2026-10-07-011032",
+      "issuedAt": "2026-10-07T17:11:45"
+    },
+    {
+      "phone": 9100000027,
+      "role": "TEAM_SUPERVISOR",
+      "name": "Team Supervisor 0027",
+      "campaign": "CMP-2026-10-07-011032",
+      "issuedAt": "2026-10-07T17:11:45"
+    },
+    {
+      "phone": 9100000028,
+      "role": "PAYMENT_EDITOR",
+      "name": "Payment Editor 0028",
+      "campaign": "CMP-2026-10-07-011032",
+      "issuedAt": "2026-10-07T17:11:45"
+    },
+    {
+      "phone": 9100000029,
+      "role": "PAYMENT_REVIEWER",
+      "name": "Payment Reviewer 0029",
+      "campaign": "CMP-2026-10-07-011032",
+      "issuedAt": "2026-10-07T17:11:45"
+    },
+    {
+      "phone": 9100000030,
+      "role": "PAYMENT_APPROVER",
+      "name": "Payment Approver 0030",
+      "campaign": "CMP-2026-10-07-011032",
+      "issuedAt": "2026-10-07T17:11:45"
+    },
+    {
+      "phone": 9100000031,
+      "role": "PROXIMITY_SUPERVISOR",
+      "name": "Proximity Supervisor 0031",
+      "campaign": "CMP-2026-10-07-011032",
+      "issuedAt": "2026-10-07T17:11:46"
+    },
+    {
+      "phone": 9100000032,
+      "role": "CAMPAIGN_SUPERVISOR",
+      "name": "Campaign Supervisor 0032",
+      "campaign": "CMP-2026-10-07-011032",
+      "issuedAt": "2026-10-07T17:11:46"
     }
   ]
 }

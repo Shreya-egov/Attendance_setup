@@ -67,6 +67,7 @@ def create_args(campaign_type):
         boundaries_from=config.BOUNDARIES_FROM, hierarchy=config.HIERARCHY_TYPE,
         sample=None, start=None, end=None, locale=config.LOCALE,
         timeout=config.CREATE_TIMEOUT, users=config.USER_ROLES,
+        user_level=config.USER_LEVEL,
     )
 
 

@@ -45,6 +45,16 @@ def test_boundary_source(hcm):
         assert source.get("hierarchyType") == config.HIERARCHY_TYPE
 
 
+def test_user_level_selected(hcm):
+    """HCM_USER_LEVEL is a type the campaign's boundaries include."""
+    if not config.BOUNDARIES_FROM:
+        pytest.skip("HCM_BOUNDARIES_FROM not set - checked when the campaign is planned")
+    types = [(b.get("type") or "").upper()
+             for b in hcm.campaign(config.BOUNDARIES_FROM).get("boundaries") or []]
+    assert config.USER_LEVEL in types, (
+        f"HCM_USER_LEVEL={config.USER_LEVEL} is not among the selected types {types}")
+
+
 def test_users_cover_attendance_roles():
     roles = set(parse_roles(config.USER_ROLES))
     missing = [label for label, codes in C.ROLE_BUCKETS if not roles & codes]

@@ -203,6 +203,7 @@ The dry run can only plan step 1, since there is no campaign yet. Files
 | `--boundary` / `HCM_BOUNDARY` | instead: root → CODE with all its children; default the first root-to-leaf path |
 | `--hierarchy` / `HCM_HIERARCHY_TYPE` | NIGERIA on qa; default the `--boundaries-from` campaign's |
 | `--users` / `HCM_USER_ROLES` | one user per role (see below) |
+| `--user-level` / `HCM_USER_LEVEL` | boundary type the users are created at (default `DISTRICT`) |
 | `HCM_USER_PHONE_START` | first phone number (default 9100000001) |
 | `--sample` / `HCM_SAMPLE_TEMPLATE` | filled template to learn from; default `data/templates/<TYPE>_sample.xlsx` |
 | `--start` / `--end` | `DD-MM-YYYY`; default tomorrow → +31 days |
@@ -212,10 +213,15 @@ The dry run can only plan step 1, since there is no campaign yet. Files
 **Users.** One active user per role in `HCM_USER_ROLES` — by default
 DISTRIBUTOR, FIELD_SUPPORT, TEAM_SUPERVISOR, PAYMENT_EDITOR, PAYMENT_REVIEWER,
 PAYMENT_APPROVER, PROXIMITY_SUPERVISOR, CAMPAIGN_SUPERVISOR (`PAYMENT_APPROVAL`
-is accepted for PAYMENT_APPROVER) — at the campaign's target boundary, named
+is accepted for PAYMENT_APPROVER) — at the campaign's selected boundary of type `HCM_USER_LEVEL`
+(default **DISTRICT**: `NIGERIA_NI_02_02_IBAJI` with the boundaries of
+`CMP-2026-10-06-011022`), named
 `<Role> <last 4 digits>`. For attendance that gives 2 attendees (DISTRIBUTOR,
 FIELD_SUPPORT), an OWNER (TEAM_SUPERVISOR) and 2 APPROVERs; the dry run warns
 if the list leaves a bucket empty.
+Registers follow the users: `--level auto` puts one where the DISTRIBUTORs
+are, so with DISTRICT users the register is at the district, and the OWNER
+and APPROVERs land on it too. Facilities are not affected.
 
 Phone numbers are **sequential**: from `HCM_USER_PHONE_START`, continuing
 across runs. `data/issued_users.json` keeps the next number and every number issued

@@ -7,7 +7,8 @@ import sys
 
 from utils.client import Hcm, die, fmt_date
 from utils.config import (BASE, BILLING, BILLING_DAYS, BOUNDARIES_FROM, BOUNDARY, CAMPAIGN_TYPES,
-                          CREATE_TIMEOUT, HIERARCHY_TYPE, RATES, TENANT, USER_ROLES)
+                          CREATE_TIMEOUT, HIERARCHY_TYPE, RATES, TENANT, USER_LEVEL,
+                          USER_ROLES)
 
 
 
@@ -87,12 +88,15 @@ def add_payment_args(ap):
 def add_create_args(ap):
     g = ap.add_argument_group("campaign creation (defaults from .env: HCM_CAMPAIGN_TYPES, "
                               "HCM_HIERARCHY_TYPE, HCM_BOUNDARIES_FROM, HCM_USER_ROLES, "
-                              "HCM_USER_PHONE_START)")
+                              "HCM_USER_PHONE_START, HCM_USER_LEVEL)")
     g.add_argument("--type", dest="project_type", type=str.upper, choices=CAMPAIGN_TYPES,
                    help=f"campaign type, one of {', '.join(CAMPAIGN_TYPES)}")
     g.add_argument("--users", default=USER_ROLES,
                    metavar="ROLE,ROLE,...",
                    help="one user is created per role (default HCM_USER_ROLES)")
+    g.add_argument("--user-level", default=USER_LEVEL, metavar="TYPE",
+                   help="boundary type the users are created at "
+                        f"(default HCM_USER_LEVEL, {USER_LEVEL})")
     g.add_argument("--name", help="campaign name (default <TYPE>_e2e_<random>)")
     g.add_argument("--boundary", default=BOUNDARY, metavar="CODE",
                    help="select root -> CODE with all its children "

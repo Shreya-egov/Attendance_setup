@@ -109,6 +109,9 @@ DEFAULT_USER_ROLES = ("DISTRIBUTOR,FIELD_SUPPORT,TEAM_SUPERVISOR,PAYMENT_EDITOR,
                       "CAMPAIGN_SUPERVISOR")
 USER_ROLES = env("HCM_USER_ROLES") or DEFAULT_USER_ROLES
 USER_PHONE_START = int(env("HCM_USER_PHONE_START") or 9100000001)
+# Boundary level the users are created at: the campaign's selected boundary of
+# this type (DISTRICT -> NIGERIA_NI_02_02_IBAJI for CMP-2026-10-06-011022).
+USER_LEVEL = (env("HCM_USER_LEVEL") or "DISTRICT").upper()
 PHONE_BOOK = os.path.join(DATA_DIR, "issued_users.json")
 
 # ---- payment setup -----------------------------------------------------
