@@ -1,0 +1,12 @@
+.env
+__pycache__/
+.pytest_cache/
+*.pyc
+artifacts/
+output/
+
+# campaign files (generated / filled templates, validation errors, summaries)
+output/campaigns/
+output/campaigns.json
+CMP-*.xlsx
+CMP-*.json
