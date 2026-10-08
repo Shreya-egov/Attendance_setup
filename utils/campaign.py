@@ -174,7 +174,7 @@ def select_boundaries(hcm, hierarchy, target=None):
     return boundaries, valid, path[-1]["code"]
 
 
-def boundaries_from(hcm, hierarchy, number):
+def boundaries_from_campaign(hcm, hierarchy, number):
     """
     select_boundaries(), but copying another campaign's selection verbatim,
     e.g. one created in the UI. The target (where re-pointed rows go) is the
@@ -200,6 +200,47 @@ def boundaries_from(hcm, hierarchy, number):
                                    includeChildren="true"):
             walk(root)
     return boundaries, valid, (expand or [boundaries[-1]["code"]])[-1]
+
+
+def resolve_hierarchy(hcm, hierarchy=None, boundaries_from=None):
+    """HCM_HIERARCHY_TYPE, else the hierarchy of the HCM_BOUNDARIES_FROM campaign."""
+    if not hierarchy and boundaries_from:
+        hierarchy = hcm.campaign(boundaries_from).get("hierarchyType")
+    if not hierarchy:
+        die("no hierarchy: set HCM_HIERARCHY_TYPE in .env (./list_boundaries.py lists them)")
+    return hierarchy
+
+
+def resolve_selection(hcm, hierarchy, boundary=None, boundaries_from=None):
+    """
+    The campaign's boundaries, from whichever of the three sources is set:
+    HCM_BOUNDARIES_FROM (copy a campaign), HCM_BOUNDARY (root -> that code),
+    or neither (the first root-to-leaf path). Returns (boundaries, valid
+    codes, target code) - see select_boundaries(). Read-only.
+    """
+    if boundaries_from and boundary:
+        die("set HCM_BOUNDARY or HCM_BOUNDARIES_FROM, not both")
+    if boundaries_from:
+        return boundaries_from_campaign(hcm, hierarchy, boundaries_from)
+    return select_boundaries(hcm, hierarchy, boundary)
+
+
+def list_hierarchies(hcm):
+    """Hierarchy types defined in the tenant, e.g. ['NIGERIA', 'MICROPLAN']."""
+    body = hcm.post("/boundary-service/boundary-hierarchy-definition/_search",
+                    {"BoundaryTypeHierarchySearchCriteria": {
+                        "tenantId": TENANT, "limit": 100, "offset": 0}}, expect=(200,))
+    return sorted({h.get("hierarchyType") for h in body.get("BoundaryHierarchy") or []
+                   if h.get("hierarchyType")})
+
+
+def boundary_tree(hcm, hierarchy, under=None):
+    """Root node(s) with nested children: the whole hierarchy, or the subtree
+    of ``under`` (that node and everything below it)."""
+    if under:
+        return _relationships(hcm, hierarchy, codes=under, includeChildren="true")
+    root_type = hcm.hierarchy_levels(hierarchy)[0]
+    return _relationships(hcm, hierarchy, boundaryType=root_type, includeChildren="true")
 
 
 def user_level_boundary(boundaries, level):
@@ -320,11 +361,7 @@ def plan_campaign(hcm, args):
     if not sample or not os.path.exists(sample):
         die(f"no sample template for {args.project_type}: put a filled unified template "
               f"at templates/{args.project_type}_sample.xlsx or pass --sample")
-    hierarchy = args.hierarchy
-    if not hierarchy and args.boundaries_from:
-        hierarchy = hcm.campaign(args.boundaries_from).get("hierarchyType")
-    if not hierarchy:
-        die("no hierarchy: set HCM_HIERARCHY_TYPE in .env or pass --hierarchy")
+    hierarchy = resolve_hierarchy(hcm, args.hierarchy, args.boundaries_from)
 
     roles = parse_roles(args.users)
     if not roles:
@@ -341,12 +378,8 @@ def plan_campaign(hcm, args):
     if end <= start:
         die("--end must be after --start")
 
-    if args.boundaries_from and args.boundary:
-        die("pass --boundary or --boundaries-from, not both")
-    if args.boundaries_from:
-        boundaries, valid, target = boundaries_from(hcm, hierarchy, args.boundaries_from)
-    else:
-        boundaries, valid, target = select_boundaries(hcm, hierarchy, args.boundary)
+    boundaries, valid, target = resolve_selection(hcm, hierarchy, args.boundary,
+                                                  args.boundaries_from)
     user_boundary = user_level_boundary(boundaries, args.user_level)
     plan = {
         "ptype": ptype, "name": args.name or unique_name(ptype["code"]),

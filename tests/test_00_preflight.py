@@ -12,6 +12,7 @@ import pytest
 from tests.conftest import require_roles
 from utils import campaign as C
 from utils import config
+from utils.attendance import resolve_level
 from utils.payment import parse_rate
 from utils.phone_book import parse_roles
 from utils.template_filler import sample_template_path
@@ -36,23 +37,38 @@ def test_sample_template_present(campaign_type):
         f"no sample for {campaign_type}: add data/templates/{campaign_type}_sample.xlsx")
 
 
-def test_boundary_source(hcm):
-    if not config.BOUNDARIES_FROM:
-        pytest.skip("HCM_BOUNDARIES_FROM not set - the first root-to-leaf path is used")
-    source = hcm.campaign(config.BOUNDARIES_FROM)
-    assert source.get("boundaries"), f"{config.BOUNDARIES_FROM} has no boundaries"
-    if config.HIERARCHY_TYPE:
-        assert source.get("hierarchyType") == config.HIERARCHY_TYPE
+def _ok(fn, *args):
+    """Run a resolver; turn its stop message into a clean test failure."""
+    try:
+        return fn(*args)
+    except SystemExit as e:
+        pytest.fail(str(e).strip(), pytrace=False)
 
 
-def test_user_level_selected(hcm):
-    """HCM_USER_LEVEL is a type the campaign's boundaries include."""
-    if not config.BOUNDARIES_FROM:
-        pytest.skip("HCM_BOUNDARIES_FROM not set - checked when the campaign is planned")
-    types = [(b.get("type") or "").upper()
-             for b in hcm.campaign(config.BOUNDARIES_FROM).get("boundaries") or []]
-    assert config.USER_LEVEL in types, (
-        f"HCM_USER_LEVEL={config.USER_LEVEL} is not among the selected types {types}")
+def test_hierarchy_exists(hcm):
+    hierarchy = _ok(C.resolve_hierarchy, hcm, config.HIERARCHY_TYPE, config.BOUNDARIES_FROM)
+    known = C.list_hierarchies(hcm)
+    assert hierarchy in known, f"hierarchy {hierarchy} not in tenant {config.TENANT}: {known}"
+
+
+def test_boundary_selection(hcm):
+    """The campaign's boundaries resolve from whichever source .env sets -
+    HCM_BOUNDARIES_FROM, HCM_BOUNDARY, or the default first path - and
+    HCM_USER_LEVEL is one of the selected levels."""
+    hierarchy = _ok(C.resolve_hierarchy, hcm, config.HIERARCHY_TYPE, config.BOUNDARIES_FROM)
+    boundaries, _, _ = _ok(C.resolve_selection, hcm, hierarchy, config.BOUNDARY,
+                           config.BOUNDARIES_FROM)
+    assert boundaries, "the boundary selection is empty"
+    _ok(C.user_level_boundary, boundaries, config.USER_LEVEL)
+
+
+def test_register_level_valid(hcm):
+    """HCM_REGISTER_LEVEL is auto, leaf, a 1-based position or a level name."""
+    level = str(config.DEFAULT_REGISTER_LEVEL).lower()
+    if level in ("auto", "leaf"):
+        return
+    hierarchy = _ok(C.resolve_hierarchy, hcm, config.HIERARCHY_TYPE, config.BOUNDARIES_FROM)
+    _ok(resolve_level, config.DEFAULT_REGISTER_LEVEL, hcm.hierarchy_levels(hierarchy))
 
 
 def test_users_cover_attendance_roles():

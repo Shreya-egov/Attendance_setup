@@ -239,39 +239,14 @@ class Hcm:
             die(f"campaign {number} not found in tenant {TENANT}")
         return rows[0]
 
-    def campaign_data(self, number, type_, limit=1000):
-        """campaign_data rows. type=boundary gives boundaryCode -> projectId."""
-        out, offset = [], 0
-        while True:
-            body = self.post(
-                "/project-factory/v1/data/campaign/_search",
-                {
-                    "SearchCriteria": {
-                        "tenantId": TENANT, "type": type_, "campaignNumber": number,
-                    },
-                    "Pagination": {"limit": limit, "offset": offset},
-                },
-                expect=(200,),
-            )
-            rows = (
-                body.get("CampaignData")
-                or body.get("campaignData")
-                or body.get("data")
-                or []
-            )
-            out.extend(rows)
-            if len(rows) < limit:
-                return out
-            offset += limit
-
     def projects(self, number, limit=1000):
         """
         boundaryCode -> projectId via the project service.
 
-        Replaces campaign_data(type="boundary"), which lives on
-        /project-factory/v1/data/campaign/_search - an INTERNAL endpoint that
-        401s for any client token (verified on demo and UAT 2026-09-28, both
-        from a CLI token and a logged-in browser session with SUPERUSER).
+        Not /project-factory/v1/data/campaign/_search: that is an INTERNAL
+        endpoint that 401s for any client token (verified on demo and UAT
+        2026-09-28, both from a CLI token and a logged-in browser session
+        with SUPERUSER).
 
         The join key is referenceID = campaign NUMBER, not the campaign uuid.
         Searching by the uuid silently returns zero rows.
@@ -434,10 +409,9 @@ class Hcm:
 
     def campaign_staff_users(self, number):
         """
-        Campaign users in the shape campaign_users() produced, sourced from
-        the project service instead of campaign_data(type="user") - which is
-        on the internal-only /data/campaign/_search and 401s for any client
-        token.
+        Campaign users as [{userId, userUuid, username, name, boundaryCode,
+        roles}], from the project service (the internal-only
+        /data/campaign/_search 401s for any client token).
 
         project -> boundary comes from projects(); project -> userId from
         project/staff/v1/_search; userId -> roles from /user/_search.

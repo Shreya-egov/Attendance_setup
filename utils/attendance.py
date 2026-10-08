@@ -2,8 +2,8 @@
 Attendance planning: which boundaries get a register, and which user goes on
 which register as attendee / OWNER / APPROVER. Pure functions over search
 results - the writes are Hcm.create_registers / create_staff /
-create_attendees. The reasoning behind the direct API route is in
-docs/register-attendee-api-chain.md.
+create_attendees: the direct health-attendance API route, which needs a
+supervisor/superuser token (CAMPAIGN_MANAGER alone gets 401).
 """
 import datetime as dt
 
@@ -151,50 +151,6 @@ def leaf_boundaries(campaign, ordered=None):
     present = [t for t in ordered if any(b.get("type") == t for b in bs)]
     deepest = present[-1] if present else None
     return {b["code"] for b in bs if b.get("code") and b.get("type") == deepest}
-
-
-def boundary_project_map(rows):
-    """
-    boundaryCode -> projectId, exactly as project-factory builds it
-    (attendanceRegister-processClass.ts buildBoundaryProjectMap): boundary rows
-    carry the code in data and the created projectId in uniqueIdAfterProcess.
-    """
-    out = {}
-    for row in rows:
-        data = row.get("data") or {}
-        code = data.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE") or row.get("uniqueIdentifier")
-        project_id = row.get("uniqueIdAfterProcess")
-        if code and project_id:
-            out[code] = project_id
-    return out
-
-
-def campaign_users(rows):
-    """
-    user rows -> [{userId, boundaryCode, roles[], username}]. uniqueIdAfterProcess
-    is the HRMS user uuid, which is what the attendance APIs want for both
-    attendee.individualId and staff.userId.
-    """
-    users = []
-    for row in rows:
-        data = row.get("data") or {}
-        user_id = row.get("uniqueIdAfterProcess")
-        if not user_id:
-            continue
-        roles_raw = data.get("HCM_ADMIN_CONSOLE_USER_ROLE") or ""
-        roles = {
-            r.strip().upper().replace(" ", "_")
-            for r in str(roles_raw).replace(",", "#").split("#")
-            if r.strip()
-        }
-        users.append({
-            "userId": user_id,
-            "username": data.get("UserName") or row.get("uniqueIdentifier"),
-            "boundaryCode": data.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY")
-                            or data.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"),
-            "roles": roles,
-        })
-    return users
 
 
 def plan_registers(campaign, bp_map, existing, prefix, event_type, sessions,

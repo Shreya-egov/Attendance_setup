@@ -48,8 +48,7 @@ Two ways to drive it, over the same `utils/` code:
 │   └── test_40_payment.py   # billing config + periods + wages; unchanged on re-run
 ├── e2e.py, create_campaign.py, setup_attendance.py,
 │   create_registers.py, map_staff.py, setup_payment.py   # CLI wrappers over utils/
-├── docs/                    # register-attendee-api-chain.md
-├── legacy/                  # create_attendance.py, setup_campaign.py (demo era, self-contained)
+├── list_boundaries.py       # explore hierarchies, levels, boundary codes; what .env selects
 └── output/                  # generated: campaigns/, failed_requests/, test_results.json, dashboard.html
 ```
 
@@ -61,7 +60,8 @@ cp .env.example .env && chmod 600 .env     # fill in HCM_USERNAME / HCM_PASSWORD
 ```
 
 Everything reads `.env` from this folder (real environment variables win) — no
-`source` needed. `.env.example` documents every key.
+`source` needed. `.env.example` holds the keys a run needs; the optional
+ones are under [Optional settings](#optional-settings).
 
 ## Commands
 
@@ -105,6 +105,15 @@ cat output/campaigns.json               # campaigns the tests are using
 cat data/issued_users.json              # every phone number issued, and the next one
 ```
 
+**Boundaries** (read-only) — for a new environment or hierarchy
+```bash
+./list_boundaries.py                              # hierarchies, levels, boundary tree, what .env selects
+./list_boundaries.py --depth 5                    # deeper tree
+./list_boundaries.py --under NIGERIA_NI_02_KOGI   # subtree of one boundary
+./list_boundaries.py --type DISTRICT              # every boundary of a level, with its path
+./list_boundaries.py --hierarchy TEST             # another hierarchy
+```
+
 **Scripts** (dry run unless `--yes`)
 ```bash
 ./e2e.py                                # plan BEDNET + MR-DN
@@ -123,6 +132,46 @@ cat data/issued_users.json              # every phone number issued, and the nex
 > types), and those cannot be deleted. To check existing campaigns without
 > creating anything, use `pytest -m "not create"`.
 
+## Optional settings
+
+Not in `.env.example`; add any of them to `.env` to change the default.
+
+| Key | Default | Use |
+|---|---|---|
+| `HCM_LOCALE` | the tenant's own language | force a locale for templates and requests |
+| `HCM_BOUNDARY` | — | instead of `HCM_BOUNDARIES_FROM`: root → this code, with everything below |
+| `HCM_REGISTER_LEVEL` | `auto` (where the DISTRIBUTORs are) | `N`, a level name, or `leaf` |
+| `HCM_AUTO_LEVEL_ROLE` | `DISTRIBUTOR` | the role `auto` follows |
+| `HCM_USER_PHONE_START` | `9100000001` | first phone number; the ledger continues from the higher of the two |
+| `HCM_SAMPLE_TEMPLATE` | `data/templates/<TYPE>_sample.xlsx` | another filled sample |
+| `HCM_CREATE_TIMEOUT` | `900` | seconds per async step |
+| `HCM_CAMPAIGN_NUMBER` | — | default campaign for the single-campaign scripts |
+| `HCM_AUTH_TOKEN` | — | log in with a browser token instead of username/password |
+| `HCM_USER_INFO` | — | with a token: userInfo as JSON or a file, if `/user/_details` is unreachable |
+
+## Switching environment or hierarchy
+
+Everything environment-specific is in `.env`; nothing in the code is tied to
+qa or NIGERIA. To move to another environment:
+
+1. Set `HCM_BASE_URL`, `HCM_TENANT_ID` and the credentials.
+2. `./list_boundaries.py` — lists the tenant's hierarchies; set
+   `HCM_HIERARCHY_TYPE` to one, run it again for its levels and boundary codes.
+3. Pick the boundaries: `HCM_BOUNDARIES_FROM=<a campaign there>` to copy one,
+   or `HCM_BOUNDARY=<code>` for root → that code with everything below, or
+   neither for the first root-to-leaf path. Set `HCM_USER_LEVEL` to a level
+   name from step 2. `./list_boundaries.py` ends with **what .env selects** —
+   or the problem, if a code or level is wrong.
+4. `pytest -m preflight` — read-only; fails on anything that would stop a
+   run: roles, hierarchy, boundary selection, user/register level, campaign
+   types, samples, billing cycle, wage roles and limits.
+5. `./e2e.py` (dry run), then `./e2e.py --yes` or `pytest`.
+
+Locale needs nothing: the tenant's default language is used unless
+`HCM_LOCALE` is set. If template validation fails in a new environment, the
+row-level errors are in `output/campaigns/<number>_validation_errors.xlsx`;
+usually the sample needs a column that environment's template has.
+
 ## Running the tests
 
 ```bash
@@ -136,7 +185,7 @@ pytest -m "not writes"               # nothing that changes server state
 
 | Marker | Selects |
 |---|---|
-| `preflight` | read-only checks of the account, MDMS masters, samples, billing/wage config |
+| `preflight` | read-only checks: account roles, hierarchy, boundary selection, user/register level, MDMS masters, samples, billing/wage config |
 | `create` | campaign creation (`test_10`) — creates a campaign and 8 users per type |
 | `attendance` | registers and user mapping (`test_20`, `test_30`) |
 | `payment` | billing cycle and wages (`test_40`) |
@@ -378,11 +427,4 @@ A second `_create` for the same (register, user, staffType) duplicates or
 400s, so already-enrolled pairs are filtered out client-side from the register
 search before anything is sent. The enrollment window is enforced here too: the
 direct route never runs `AttendanceRegisterAttendeeValidationProcessor` (it only
-fires on the xlsx route). See `docs/register-attendee-api-chain.md`.
-
-### `legacy/`
-
-`create_attendance.py` (registers + attendees in one pass) and
-`setup_campaign.py` (inspect + billing config) predate the framework, were
-built for demo, and keep their own client. Everything they do is covered by
-`setup_attendance.py` / `setup_payment.py`.
+fires on the xlsx route).
