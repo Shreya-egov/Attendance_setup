@@ -12,7 +12,7 @@ import uuid
 from utils.client import ApiError, die, fmt_date
 from utils.config import (
     BASE, CAMPAIGN_OUTPUT_DIR, CAMPAIGN_TYPES, DEFAULT_APPROVER_ROLES,
-    DEFAULT_MARKER_ROLES, DEFAULT_WORKER_ROLES, TENANT, TIMEOUT,
+    DEFAULT_MARKER_ROLES, DEFAULT_WORKER_ROLES, MDMS_PATH, TENANT, TIMEOUT,
 )
 from utils.data_loader import load_payload
 from utils.phone_book import PhoneBook, parse_roles
@@ -94,7 +94,7 @@ def poll(what, fetch, timeout, delay=5):
 
 def project_type(hcm, code):
     """The MDMS project type, matched case-insensitively (Bednet / BEDNET)."""
-    body = hcm.post("/egov-mdms-service/v2/_search",
+    body = hcm.post(f"{MDMS_PATH}/v2/_search",
                     {"MdmsCriteria": {"tenantId": TENANT, "schemaCode": PROJECT_TYPE_SCHEMA,
                                       "limit": 200}}, expect=(200,))
     types = {m["data"]["code"]: m["data"] for m in body.get("mdms") or []
@@ -110,7 +110,7 @@ def default_locale(hcm):
     """HCM_LOCALE, else the tenant's StateInfo defaultLanguage (en_MZ on qa)."""
     if os.environ.get("HCM_LOCALE"):
         return os.environ["HCM_LOCALE"]
-    body = hcm.post("/egov-mdms-service/v1/_search",
+    body = hcm.post(f"{MDMS_PATH}/v1/_search",
                     {"MdmsCriteria": {"tenantId": TENANT, "moduleDetails": [{
                         "moduleName": "common-masters",
                         "masterDetails": [{"name": "StateInfo"}]}]}}, expect=(200,))

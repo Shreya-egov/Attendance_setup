@@ -37,6 +37,9 @@ env = os.environ.get
 
 BASE = os.environ.get("HCM_BASE_URL", "https://health-demo.digit.org").rstrip("/")
 TENANT = os.environ.get("HCM_TENANT_ID", "demo")
+# MDMS gateway context path: /egov-mdms-service on some environments,
+# /mdms-v2 on others. Both serve the same /v1 and /v2 APIs underneath.
+MDMS_PATH = "/" + os.environ.get("HCM_MDMS_PATH", "egov-mdms-service").strip("/")
 TIMEOUT = 60
 
 # Roles the API gateway maps to the attendance write actions.
@@ -78,7 +81,7 @@ AUTO_LEVEL_ROLE = os.environ.get("HCM_AUTO_LEVEL_ROLE", "DISTRIBUTOR")
 # per environment. /health-* goes first: on unified-qa the plain paths reach
 # other services that 401, 400, or - for project staff - answer 200 with
 # ZERO rows, which no fallback can detect (verified 2026-10-06). Where
-# /health-* does not exist (demo) it 404s and the plain path is used.
+# /health-* does not exist (demo) it 404s or 503s and the plain path is used.
 PROJECT_SEARCH_PATHS = ("/health-project/v1/_search", "/project/v1/_search")
 PROJECT_STAFF_PATHS = ("/health-project/staff/v1/_search", "/project/staff/v1/_search")
 INDIVIDUAL_SEARCH_PATHS = ("/health-individual/v1/_search", "/individual/v1/_search")

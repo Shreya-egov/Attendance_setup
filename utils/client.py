@@ -15,8 +15,8 @@ import uuid
 import requests
 
 from utils.config import (
-    ATTENDANCE_BATCH, BASE, INDIVIDUAL_SEARCH_PATHS, LOCALE, PROJECT_SEARCH_PATHS,
-    PROJECT_STAFF_PATHS, REGISTER_API_BATCH, TENANT, TIMEOUT,
+    ATTENDANCE_BATCH, BASE, INDIVIDUAL_SEARCH_PATHS, LOCALE, MDMS_PATH,
+    PROJECT_SEARCH_PATHS, PROJECT_STAFF_PATHS, REGISTER_API_BATCH, TENANT, TIMEOUT,
 )
 
 
@@ -223,7 +223,8 @@ class Hcm:
             try:
                 return self.post(path, payload, params=params, expect=expect)
             except ApiError as e:
-                if e.status not in (400, 401, 403, 404) or path == paths[-1]:
+                # 503: nginx on demo has no backend for /health-* (2026-10-19)
+                if e.status not in (400, 401, 403, 404, 503) or path == paths[-1]:
                     raise
 
     # ---- reads ---------------------------------------------------------
@@ -480,7 +481,7 @@ class Hcm:
         Empty on a tenant that never had them seeded - the UI then disables
         its billing-cycle dropdown."""
         body = self.post(
-            "/egov-mdms-service/v2/_search",
+            f"{MDMS_PATH}/v2/_search",
             {"MdmsCriteria": {"tenantId": TENANT,
                               "schemaCode": "HCM-BILLING-CONFIG-PAYMENT-SETUP.BillingCycle",
                               "limit": 100}},
@@ -494,7 +495,7 @@ class Hcm:
         rateBreakupSchema, rateMaxLimitSchema}, from MDMS v1 exactly as the
         payment setup page asks for them."""
         body = self.post(
-            "/egov-mdms-service/v1/_search",
+            f"{MDMS_PATH}/v1/_search",
             {"MdmsCriteria": {"tenantId": TENANT, "moduleDetails": [{
                 "moduleName": "HCM-BILLING-CONFIG-PAYMENT-SETUP",
                 "masterDetails": [{"name": "CampaignTypeSkills",
@@ -526,7 +527,7 @@ class Hcm:
         """The HCM.WORKER_RATES MDMS record of a campaign. Keyed by the ROOT
         PROJECT id - stored in data.campaignId despite the name."""
         body = self.post(
-            "/egov-mdms-service/v2/_search",
+            f"{MDMS_PATH}/v2/_search",
             {"MdmsCriteria": {"tenantId": TENANT, "schemaCode": "HCM.WORKER_RATES",
                               "uniqueIdentifiers": [root_project_id], "limit": 5}},
             expect=(200,),
@@ -537,11 +538,11 @@ class Hcm:
     def save_worker_rates(self, data, existing=None):
         if existing:
             record = {**existing, "data": data}
-            path = "/egov-mdms-service/v2/_update/HCM.WORKER_RATES"
+            path = f"{MDMS_PATH}/v2/_update/HCM.WORKER_RATES"
         else:
             record = {"tenantId": TENANT, "schemaCode": "HCM.WORKER_RATES",
                       "data": data, "isActive": True}
-            path = "/egov-mdms-service/v2/_create/HCM.WORKER_RATES"
+            path = f"{MDMS_PATH}/v2/_create/HCM.WORKER_RATES"
         return self.post(path, {"Mdms": record})
 
     def create_registers(self, registers):

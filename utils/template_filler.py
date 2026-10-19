@@ -201,9 +201,16 @@ def _band_height(sheet, header_row):
     so the shape is identical.
     """
     label_row = header_row + 1
-    if label_row <= sheet.max_row and not _is_code_row(sheet, label_row):
-        if _row_headers(sheet, label_row):
-            return 2
+    if label_row > sheet.max_row:
+        return 1
+    labels = _row_headers(sheet, label_row)
+    if labels and not _is_code_row(sheet, label_row):
+        return 2
+    # A locale with no localization for the console (demo, 2026-10-19) puts
+    # the codes themselves on the label row. Counting that row as data wrote
+    # the first user over it, and project-factory skipped it as the header.
+    if labels and labels == _row_headers(sheet, header_row):
+        return 2
     return 1
 
 
